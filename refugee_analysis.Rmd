@@ -1,0 +1,75 @@
+---
+title: "Tidy Template"
+author: "Fabio Votta"
+date: "The Date"
+output: html_document
+---
+
+This script is about:
+
+
+
+## Packages and Folders
+
+```{r}
+# Install these packages if you don't have theme yet
+# devtools::install_github("favstats/tidytemplate")
+# install.packages("pacman")
+
+pacman::p_load(tidyverse, readxl, sjmisc)
+
+# Creates folders
+# tidytemplate::data_dir()
+# tidytemplate::images_dir()
+```
+
+
+## Load Data
+
+```{r, data}
+refugee_dat <- read_excel("data/refugee_dat.xls") %>% 
+  drop_na(X__1) %>% 
+  rename(cntry = X__1) %>% 
+  select(-Religion, -X__2, -X__3, - Total) %>% 
+  filter(!(str_detect(cntry, "Total|Data"))) %>% 
+  gather(year, n, -cntry) %>% 
+  mutate(year = str_replace(year, "CY ", "") %>% as.numeric)
+
+```
+
+
+## Analysis / Dataviz
+
+```{r, analysis}
+refugee_dat %>% 
+  group_by(year) %>% 
+  tally() %>% 
+  ggplot(aes(year, nn)) +
+  geom_line()
+
+refugee_dat %>% group_by(cntry) %>% tally() %>% arrange(desc(nn))
+
+
+top11 <-c("Burma", "Iraq", "Somalia", "Syria")
+
+refugee_dat %>% 
+  filter(cntry %in% top11) %>% 
+  ggplot(aes(year, n, color = cntry)) +
+  geom_line() 
+  
+```
+
+```{r}
+library(gganimate)
+
+refugee_dat %>% 
+  filter(cntry %in% top11) %>% 
+  ggplot(aes(year, n, color = cntry)) +
+  geom_line() +
+  transition_reveal(year, cntry)
+
+# anim_save("images/fail2.gif")
+```
+
+
+## Conclusion
