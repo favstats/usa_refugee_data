@@ -407,7 +407,8 @@ gg_relig <- relig_refugee  %>%
 gg_relig
 ```
 
-[![](https://raw.githubusercontent.com/favstats/usa_refugee_data/master/images/refugee_analysis_files/figure-gfm/unnamed-chunk-9-1.png)](https://raw.githubusercontent.com/favstats/usa_refugee_data/master/refugee_analysis_files/figure-gfm/unnamed-chunk-9-1.png) 
+[![](https://raw.githubusercontent.com/favstats/usa_refugee_data/master/refugee_analysis_files/figure-gfm/unnamed-chunk-9-1.png)](https://raw.githubusercontent.com/favstats/usa_refugee_data/master/refugee_analysis_files/figure-gfm/unnamed-chunk-9-1.png) 
+
 
 ``` r
 tidytemplate::ggsave_it(gg_relig, width = 10, height = 6)
