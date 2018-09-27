@@ -460,3 +460,75 @@ anim_save("images/gg_religion.gif")
 ```
 
 [![](https://raw.githubusercontent.com/favstats/usa_refugee_data/master/images/gg_religion.gif)](https://raw.githubusercontent.com/favstats/usa_refugee_data/master/images/gg_religion.gif) 
+
+
+
+## Maps
+
+``` r
+load("data/world_map.Rdata")
+
+refugee_map_total <- refugee_dat %>% 
+  mutate(id = countrycode::countrycode(cntry, "country.name", "country.name")) %>% 
+  mutate(id = ifelse(cntry == "Tibet", yes = "China", no = id)) %>%
+  group_by(id) %>% 
+  summarize(n = sum(n, na.rm = T)) %>% 
+  full_join(world_map) %>% 
+  mutate(n = cut(n,  
+                 breaks = c(1, 100, 10000, 50000, 100000, 175000), 
+                 labels = c("< 100", "100 - 10.000", 
+                          "10.001 - 50.000", "50.001 - 100.000", 
+                            "100.001 - 175.000")))
+```
+
+### Total Map
+
+``` r
+refugee_map_total %>% 
+  ggplot() +
+  geom_map(map = world_map,
+         aes(x = long, y = lat, group = group, map_id = id),
+         color = "#7f7f7f", fill = "gray80", size = 0.15) +
+  geom_map(data = refugee_map_total, 
+           map = world_map,
+        aes(map_id  = id, 
+            fill = n), size = 0.01) + 
+  theme_void() +
+#  scale_fill_gradient(low = "red", high = "blue") + 
+  coord_equal() +
+  viridis::scale_fill_viridis("Number of Refugees", 
+                              direction = -1,
+                              option = "D", 
+                              discrete = T, 
+                              # begin = .2, 
+                              # end = .8, 
+                              na.value = "grey",
+                        #       limits = c(0, 1), 
+                        # breaks = c(0, .20, .40, .60, .8, 1),
+                        labels = c("< 100", "100 - 10.000", 
+                          "10.000 - 50.000", "50.000 - 100.000", 
+                            "100.000 - 175.000", "No Refugees")) +
+  # facet_wrap(~year, ncol = 6) +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    plot.caption = element_text(size = 14),
+    legend.justification = c(1, 0),
+    legend.position = c(0.2, 0.25),
+    legend.title = element_text(size = 10), 
+    #axis.ticks.length = unit(3, "cm"),
+    legend.direction = "vertical") +
+  # guides(fill = guide_colorbar(barwidth = 0.7, barheight = 15,
+  #               title.position = "bottom", title.hjust = 0.5,
+  #               label.theme = element_text(colour = "black", size = 6, angle = 0))) +
+  labs(x = "", y = "",
+       title = "Refugees arriving in the United States of America by Nationality (2002 - 2018)",
+       caption = "Data: Department of State, Office of Admissions - Refugee Processing Center   \nfavstats.eu; @favstats   ")   
+```
+
+[![](https://raw.githubusercontent.com/favstats/usa_refugee_data/master/images/refugee_total_map.png)](https://raw.githubusercontent.com/favstats/usa_refugee_data/master/images/refugee_total_map.png) 
+
+``` r
+
+ggsave(filename = "images/refugee_total_map.png", height = 6, width = 12) 
+
+```
