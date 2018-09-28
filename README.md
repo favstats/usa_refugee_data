@@ -532,3 +532,153 @@ refugee_map_total %>%
 ggsave(filename = "images/refugee_total_map.png", height = 6, width = 12) 
 
 ```
+
+
+
+## Extended Data (1975 - 2018)
+
+``` r
+refuge_admissions75 <- 'https://static1.squarespace.com/static/580e4274e58c624696efadc6/t/5b8ff632aa4a999f85f99e8d/1536161330411/Graph+Refugee+Admissions+since+1975%289.5.18%29.pdf'
+
+# Extract the table
+out <- extract_tables(refuge_admissions75)
+
+first_pages <- do.call(rbind, out[-length(out)]) %>% as_tibble()
+
+correct_names <- first_pages[2,] %>% as.character()
+
+final1 <- first_pages %>% 
+  set_names(correct_names) %>% 
+  .[-c(1:2),] %>% 
+  .[-c(length(.)),] 
+
+last_page <- cbind(
+   out[[3]][,1],
+   out[[3]][,2],
+   out[[3]][,3],
+   out[[3]][,5],
+   out[[3]][,6],
+   out[[3]][,7],
+   out[[3]][,8],
+   out[[3]][,9],
+   out[[3]][,10],
+   out[[3]][,11]
+) %>% as_tibble() 
+  
+correct_lastpage <- last_page[2,] %>% as.character()
+
+final2 <- last_page %>% 
+  set_names(correct_lastpage) %>% 
+  .[-c(1:2),] 
+
+
+
+admissions75 <- bind_rows(final1, final2) %>% 
+  select(-Total) %>% 
+  mutate_all(parse_number) %>% 
+  na.omit() %>% 
+  gather(region, n, -`Fiscal\rYear`) %>% 
+  janitor::clean_names()
+```
+
+### Plot It
+
+``` r
+year_lab <- paste0("'", stringi::stri_sub(1975:2018, -2 , -1))
+
+year_dat <- tibble(fiscal_year = c(seq(1976, 2016, 4)), 
+                   label = c("Carter I", "Reagan I", "Reagan II", 
+                             "H.W. Bush I", "Clinton I", "Clinton II", "Bush I", 
+                             "Bush II", "Obama I", "Obama II", "Trump I"))
+
+n_refugee_2018 <- admissions75 %>% 
+  filter(fiscal_year == 2018) %>% 
+  summarize(n = sum(n)) %>% 
+  .$n
+
+n_refugee_2002 <- admissions75 %>% 
+  filter(fiscal_year == 2002) %>% 
+  summarize(n = sum(n)) %>% 
+  .$n
+
+n_refugee_1992 <- admissions75 %>% 
+  filter(fiscal_year == 1992) %>% 
+  summarize(n = sum(n)) %>% 
+  .$n
+
+n_refugee_1980 <- admissions75 %>% 
+  filter(fiscal_year == 1980) %>% 
+  summarize(n = sum(n)) %>% 
+  .$n
+
+n_refugee_1975 <- admissions75 %>% 
+  filter(fiscal_year == 1975) %>% 
+  summarize(n = sum(n)) %>% 
+  .$n
+
+admissions75 %>% 
+  summarize(n = sum(n)) %>% 
+  .$n
+
+
+admissions75 %>% 
+  mutate(region = case_when(
+    region == "Former\rSoviet\rUnion" ~ "(Former) Soviet Union",
+    region == "Latin America\rCaribbean" ~ "Latin America/Caribbean",
+    region == "Near East\rSouth Asia" ~ "Near East/South Asia",    
+    region == "PSI" ~ "Private Sector Initiative",   
+    T ~ region
+  )) %>% 
+  ggplot(aes(fiscal_year, n))  +
+  geom_vline(data = year_dat, aes(xintercept = fiscal_year), alpha = 0.35) +
+  geom_label(data = year_dat, aes(x = fiscal_year, y = 220000, label = label),
+            angle = 0, color = "black") +
+  geom_area(aes(fill = region), alpha = 0.9) +
+  geom_hline(yintercept = n_refugee_2018, 
+             linetype = "dashed", color = "black", alpha = 0.85) +
+  annotate("label", x = 1978, y = 115000, 
+           fill = "lightgrey", alpha = 0.85, label.size = NA,
+           label = "End of\n Vietnam War") +
+  annotate("label", x = 1984, y = 185000, 
+           fill = "lightgrey", alpha = 0.85, label.size = NA,
+           label = "Refugee Act of 1980") +
+  annotate("label", x = 1997, y = 150000, 
+           fill = "lightgrey", alpha = 0.85, label.size = NA,
+           label = "Fall of Soviet Union") +
+  annotate("label", x = 2000, y = 105000, 
+           fill = "lightgrey", alpha = 0.85, label.size = NA,
+           label = "Drop after 9/11") +
+  annotate("label", x = 2015, y = 110000, 
+           fill = "lightgrey", alpha = 0.85, label.size = NA,
+           label = "Number of Refugees in 2018\n lowest since 1977") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::comma) +
+  scale_fill_manual("Region", values = qualitative) +
+  geom_curve(aes(x = 1977, y = 125000, xend = 1975, yend = n_refugee_1975),
+  arrow = arrow(length = unit(0.03, "npc")), curvature = 0.2) +
+  geom_curve(aes(x = 1982, y = 190000, xend = 1980, yend = n_refugee_1980),
+  arrow = arrow(length = unit(0.03, "npc")), curvature = 0.2) +
+  geom_curve(aes(x = 1994, y = 150000, xend = 1992, yend = n_refugee_1992),
+  arrow = arrow(length = unit(0.03, "npc")), curvature = 0.2) +
+  geom_curve(aes(x = 2000, y = 100000, xend = 2002, yend = n_refugee_2002),
+  arrow = arrow(length = unit(0.03, "npc")), curvature = -0.3) +
+  geom_curve(aes(x = 2016, y = 100000, xend = 2018, yend = n_refugee_2018),
+  arrow = arrow(length = unit(0.03, "npc")), curvature = -0.2) +
+  theme(plot.title = element_text(size = 13, face = "bold"),
+    # plot.subtitle = element_text(size = 11, face = "bold"), 
+    plot.caption = element_text(size = 10),
+    legend.key.width = unit(3, "line"),
+    legend.position = "bottom") +
+  scale_x_continuous(breaks = 1975:2018, labels = year_lab,
+                     minor_breaks = seq(1975, 2018, 1)) +
+  labs(x = "", y = "Number of Refugees\n", 
+       title = "Refugees arriving in the United States of America by Year (1975 - 2018)\n", 
+       caption = "Data: Department of State, Office of Admissions - Refugee Processing Center\nTotal Number of Accepted Refugees since 1975: 3.340.709\nfavstats.eu; @favstats") 
+
+```
+
+[![](https://raw.githubusercontent.com/favstats/usa_refugee_data/master/images/refugee75.png)](https://raw.githubusercontent.com/favstats/usa_refugee_data/master/images/refugee75.png) 
+
+``` r
+ggsave(filename = "images/refugee75.png", height = 7, width = 13) 
+```
