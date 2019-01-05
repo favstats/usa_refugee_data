@@ -16,7 +16,7 @@ options(scipen = 999)
 # devtools::install_github("UrbanInstitute/urbnmapr")
 # install.packages("pacman")
 
-pacman::p_load(tidyverse, readxl, sjmisc, urbnmapr, tabulizer)
+pacman::p_load(tidyverse, readxl, sjmisc, urbnmapr, tabulizer, viridis, countrycode)
 
 # Creates folders
 # tidytemplate::data_dir()
@@ -27,7 +27,7 @@ pacman::p_load(tidyverse, readxl, sjmisc, urbnmapr, tabulizer)
 ## Load Data
 
 ```{r, data}
-refugee_dat <- read_excel("data/refugee_dat.xls") %>% 
+refugee_dat <- read_excel("data/refugee_dat.xls", skip = 1) %>% 
   drop_na(X__1) %>% 
   rename(cntry = X__1) %>% 
   select(-Religion, -X__2, -X__3, - Total) %>% 
@@ -318,7 +318,7 @@ anim_save("images/gg_anim_region.gif")
 ## Religion Data
 
 ```{r}
-relig_refugee <- read_excel("data/refugee_dat.xls") %>% 
+relig_refugee <- read_excel("data/refugee_dat.xls", skip = 1) %>% 
   drop_na(Religion) %>% 
   rename(religion = Religion) %>% 
   select(-X__1, -X__2, -X__3, - Total) %>% 
@@ -434,7 +434,7 @@ anim_save("images/gg_religion.gif")
 
 ```{r}
 get_relig_cnty <- function(cntry = "Iraq") {
-read_excel("data/refugee_dat.xls") %>% 
+read_excel("data/refugee_dat.xls", skip = 1) %>% 
   janitor::clean_names() %>% 
   rename(origin = x_1) %>% 
   fill(origin, .direction = "down") %>% 
@@ -872,7 +872,7 @@ arrival_refugee %>%
   # filter(year == 2018) %>% 
   ggplot(aes(long, lat, group = group, fill = n)) +
   geom_polygon(color = "black") +
-  geom_point(data = city_names[1:500,], inherit.aes = F, aes(lon, lat)) +
+  # geom_point(data = city_names[1:500,], inherit.aes = F, aes(lon, lat)) +
   coord_map() +
   labs(fill = "Number of Refugees") +
   ggthemes::theme_map() +
@@ -1033,17 +1033,42 @@ admissions75 %>%
   arrow = arrow(length = unit(0.03, "npc")), curvature = -0.2) +
   theme(plot.title = element_text(size = 13, face = "bold"),
     # plot.subtitle = element_text(size = 11, face = "bold"), 
-    plot.caption = element_text(size = 10),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 1),
     legend.key.width = unit(3, "line"),
     legend.position = "bottom") +
   scale_x_continuous(breaks = year_lab, labels = year_lab,
                      minor_breaks = seq(1975, 2018, 1)) +
   labs(x = "", y = "Number of Refugees\n", 
        title = "Refugees arriving in the United States of America by Year (1975 - 2018)\n", 
-       caption = "Data: Department of State, Office of Admissions - Refugee Processing Center\nTotal Number of Accepted Refugees since 1975: 3.340.709\nfavstats.eu; @favstats") 
+       caption = "\nData: State Department, Office of Admissions - Refugee Processing Center. Total Number of Accepted Refugees since 1975: 3.340.709") 
 
 ggsave(filename = "images/refugee75.png", height = 7, width = 13) 
 ```
+
+```{r}
+sum(admissions75$n)
+
+admissions75 %>% 
+  group_by(fiscal_year) %>% 
+  select(-region) %>% 
+  summarise_all(sum)
+
+admissions75 %>% 
+  group_by(fiscal_year) %>% 
+  mutate(total = sum(n)) %>% 
+  mutate(perc = (100*(n/total)) %>% round(., 2)) %>% 
+  filter(fiscal_year %in% 2009:2016)
+  
+
+
+admissions75  %>% 
+  filter(fiscal_year %in% 2008:2016) %>% 
+  group_by(region) %>% 
+  summarise(n = sum(n)) %>% 
+  mutate(total = sum(n)) %>% 
+  mutate(perc = (100*(n/total)) %>% round(., 2))
+```
+
 
 ## Demographics
 
