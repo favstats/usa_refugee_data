@@ -16,7 +16,7 @@ options(scipen = 999)
 # devtools::install_github("UrbanInstitute/urbnmapr")
 # install.packages("pacman")
 
-pacman::p_load(tidyverse, readxl, sjmisc, urbnmapr, tabulizer, viridis, countrycode)
+pacman::p_load(tidyverse, readxl, sjmisc, urbnmapr, tabulizer, viridis, magrittr, countrycode)
 
 # Creates folders
 # tidytemplate::data_dir()
@@ -41,7 +41,39 @@ year_dat <- tibble(year = c(2005, 2009, 2013, 2017), label = c("Bush II", "Obama
 
 qualitative <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a')
 
+n_refugee_total <- refugee_dat %>% use_series(n) %>% sum
 
+refugee_dat %>% 
+  filter(str_detect(cntry, "Burma"))
+
+
+ read_excel("data/refugee_dat.xls", skip = 1) %>% 
+   tidyr::fill(X__1) %>% 
+   # filter(X__1 == "Burma") %>% 
+  rename(religion = Religion, cntry = X__1) %>% 
+   drop_na(religion) %>% 
+  # filter(!(str_detect(cntry, "Total|Data"))) %>% 
+
+  # group_by(religion, year) %>% 
+  # mutate(n = sum(n)) %>% 
+  mutate(religion_cat = case_when(
+    str_detect(religion, "Moslem|Ahmadiyya") ~ "Muslim",
+    str_detect(religion, "Christ|Baptist|Chald|Coptic|Greek|Jehovah|Lutheran|Mennonite|Orthodox|Pentecostalist|Protestant|Uniate|Adventist|Cath|Meth|Old Believer") ~ "Christian",
+    str_detect(religion, "Atheist|No Religion") ~ "Atheist/No Religion",
+    religion == "Hindu" ~ "Hindu",
+    T ~ "Other/Unknown"
+  )) %>% 
+  select(-X__2, -X__3, -Total, -religion) %>% 
+    gather(year, n, -religion_cat, -cntry) %>%
+  mutate(year = str_replace(year, "CY ", "") %>% as.numeric) %>% 
+   group_by(religion_cat, cntry, year) %>% 
+   summarise(n = sum(n)) %>% 
+   ungroup() %>% 
+   filter(religion_cat == "Christian", year %in% 2016:2018) %>% 
+   arrange(desc(n)) %>% 
+   group_by(year) %>% 
+   mutate(total = sum(n)) %>% 
+   arrange(year)
 ```
 
 
@@ -320,11 +352,12 @@ anim_save("images/gg_anim_region.gif")
 ```{r}
 relig_refugee <- read_excel("data/refugee_dat.xls", skip = 1) %>% 
   drop_na(Religion) %>% 
-  rename(religion = Religion) %>% 
-  select(-X__1, -X__2, -X__3, - Total) %>% 
+  janitor::clean_names() %>% 
+  # rename(religion = Religion) %>% 
+  select(-x1, -x9, -x15, -total) %>% 
   # filter(!(str_detect(cntry, "Total|Data"))) %>% 
   gather(year, n, -religion) %>% 
-  mutate(year = str_replace(year, "CY ", "") %>% as.numeric) %>% 
+  mutate(year = str_replace(year, "cy_", "") %>% as.numeric) %>% 
   # group_by(religion, year) %>% 
   # mutate(n = sum(n)) %>% 
   mutate(religion_cat = case_when(
@@ -348,6 +381,9 @@ relig_refugee <- read_excel("data/refugee_dat.xls", skip = 1) %>%
 label_dat <- relig_refugee %>% 
   filter(year == 2018)
 
+year_dat <- year_dat %>% 
+  rename(year = `fiscal_year`)
+
 gg_relig <- relig_refugee  %>% 
   ggplot(aes(year, n)) +
   geom_vline(data = year_dat, aes(xintercept = year), alpha = 0.15) +
@@ -366,7 +402,7 @@ gg_relig <- relig_refugee  %>%
   scale_linetype("Religion") +
   theme(plot.title = element_text(size = 13, face = "bold"),
     plot.subtitle = element_text(size = 11, face = "bold"), 
-    plot.caption = element_text(size = 10),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 1),
     legend.key.width = unit(3, "line"),
     legend.position = "bottom") +
   scale_x_continuous(breaks = 2002:2018, labels = 2002:2018, 
@@ -374,12 +410,13 @@ gg_relig <- relig_refugee  %>%
                      minor_breaks = seq(2002, 2018, 1)) +
   labs(x = "", y = "Number of Refugees\n", 
        title = "Refugees arriving in the United States of America by Year (2002 - 2018)", subtitle = "Aggregated by Religion\n",
-       caption = "Data: Department of State, Office of Admissions - Refugee Processing Center\nfavstats.eu; @favstats") +
+       caption = glue("Data: Department of State, Office of Admissions - Refugee Processing Center. Total accepted Refugees in Timerange: {scales::comma(n_refugee_total)}; Visualization: @favstats"))   +
   guides(color = F)
 
 gg_relig
 
 tidytemplate::ggsave_it(gg_relig, width = 10, height = 6)
+
 ```
 
 ### Animated
@@ -568,7 +605,7 @@ refugee_map_total %>%
   # facet_wrap(~year, ncol = 6) +
   theme(
     plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
-    plot.caption = element_text(size = 10),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 1),
     legend.justification = c(1, 0),
     legend.position = c(0.2, 0.25),
     legend.title = element_text(size = 10), 
@@ -579,7 +616,7 @@ refugee_map_total %>%
   #               label.theme = element_text(colour = "black", size = 6, angle = 0))) +
   labs(x = "", y = "",
        title = "Origin of Refugees arriving in the United States of America (2002 - 2018)\n",
-       caption = "Data: Department of State, Office of Admissions - Refugee Processing Center \nTotal accepted Refugees in Timerange: 943.338\n favstats.eu; @favstats ")  
+       caption = glue("Data: Department of State, Office of Admissions - Refugee Processing Center. Total accepted Refugees in Timerange: {scales::comma(n_refugee_total)}; Visualization: @favstats"))
 
 ggsave(filename = "images/refugee_total_map.png", height = 6, width = 12) 
 
@@ -745,23 +782,23 @@ city_stats_by_year %>%
   # arrange(year, desc(n)) %>% 
   group_by(city_state) %>% 
   tally() %>% 
-  arrange(desc(nn)) %>% 
+  arrange(desc(n)) %>% 
   top_n(25) %>% 
   ungroup() %>% 
-  mutate(city_state = forcats::fct_reorder(city_state, nn)) %>% 
-  ggplot(aes(city_state, nn)) +
+  mutate(city_state = forcats::fct_reorder(city_state, n)) %>% 
+  ggplot(aes(city_state, n)) +
   geom_col() +
   coord_flip()  +
   theme_minimal() +
   theme(plot.title = element_text(size = 13, face = "bold"),
     plot.subtitle = element_text(size = 11, face = "italic"), 
-    plot.caption = element_text(size = 10),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 1),
     legend.position = "bottom") +
   labs(x = "", y = "Number of Refugees\n", 
        title = "Refugees arriving in the United States of America by Cities (2002 - 2018)", subtitle = "Top 25 Cities accepting Refugees\n",
-       caption = "Data: Department of State, Office of Admissions - Refugee Processing Center\nfavstats.eu; @favstats") +
+       caption = glue("Data: Department of State, Office of Admissions - Refugee Processing Center. Total accepted Refugees in Timerange: {scales::comma(n_refugee_total)}; Visualization: @favstats")) +
   guides(color = F) +
-  geom_text(aes(label = nn), color = "white", nudge_y = -1000)
+  geom_text(aes(label = n), color = "white", nudge_y = -1000)
 
 tidytemplate::ggsave_it(city_stats, height = 7, width = 12) 
 ```
@@ -794,70 +831,13 @@ city_names <- city_stats_by_year %>% distinct(city_state) %>% .$city_state %>%
 tidytemplate::save_it(city_names)
 
 
-```
-
-```{r}
-api_key <- "353a9039664549be97959cf258bc9ee7"
-fromJSON_pro  <- possibly(fromJSON, NULL)
-progressively <- function(.f, .n, ...) {
-  pb <- progress::progress_bar$new(total = .n, ...)
-  function(...) {
-    pb$tick()
-    .f(...)
-  }
-}
-get_opencagedata <- function(city = "", country = "Germany", api_key){
-  api_url <- "https://api.opencagedata.com/geocode/v1/json?q="
-  api_auth <- glue::glue("&key={api_key}&pretty=1")
-
-  query <- c(city, country) %>% 
-    glue::glue_collapse("+") %>% 
-    str_replace_all(" ", "%")
-  
-  request <- c(api_url, query, api_auth) %>% glue::glue_collapse("")
-  
-  json_file <- request %>%
-    httr::GET() %>%
-    httr::content(., "text") 
-
-  parsed_file <<- json_file %>% 
-    fromJSON_pro
-  
-  q <- tibble(city = city, country = country)
-  if(length(parsed_file$results) == 0) return(q)
-  if(nrow(parsed_file$results) == 0) return(q)
-  
-  parsed <<- parsed_file$results[which.max(parsed_file$results$confidence),]
-  coord <- parsed$annotations$DMS %>% 
-    map_dfc(~{
-      .x %>% 
-        ifelse(str_detect(., "W|S"), paste("-", .), .) %>% 
-        str_extract("^.*?'") %>% 
-        str_remove_all("\\.") %>% 
-        str_replace("°", ".") %>%
-        str_remove_all("[^(\\d|\\.|-|\\-)]")
-    })
-
-  currency <- parsed$annotations$currency[, c("iso_code", "iso_numeric", "name", "symbol")] 
-  
-  flag <- tibble(flag = parsed$annotations$flag)
-  
-  out <- list(q, coord, currency, flag) %>% 
-    map(~{
-      if(length(.x) == 0){
-        .x <- tibble(symbol = NA)  
-      }
-      return(.x)
-    }) %>% 
-    reduce(bind_cols)
-  
-  print(glue::glue("{out$flag} {query}"))
-  return(out)
-}
-
-
-final_coords <- c("Stuttgart", "Munch") %>% 
-  map_df(~get_opencagedata(.x, api_key = api_key))
+arrival_refugee %>% 
+  rename(state_name = State) %>% 
+  group_by(state_name) %>% 
+  summarize(n = sum(n)) %>% 
+  arrange(desc(n))  %>% 
+  mutate(total = sum(n)) %>% 
+  mutate(perc = n/total) 
 ```
 
 
@@ -881,11 +861,11 @@ arrival_refugee %>%
                               option = "A")  +
   labs(x = "", y = "",
        title = "Refugees arriving in the United States of America (2002 - 2018)",
-       caption = "Data: Department of State, Office of Admissions - Refugee Processing Center   \nTotal accepted Refugees in Timerange: 943.338\n   favstats.eu; @favstats   ") +
+       caption = glue("Data: Department of State, Office of Admissions - Refugee Processing Center. Total accepted Refugees in Timerange: {scales::comma(n_refugee_total)}; Visualization: @favstats")) +
   theme(
     plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
-    plot.caption = element_text(size = 10),
     legend.justification = c(1, 0),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 1),
     legend.position = c(1, 0.1),
     legend.title = element_text(size = 10), 
     #axis.ticks.length = unit(3, "cm"),
@@ -1040,7 +1020,7 @@ admissions75 %>%
                      minor_breaks = seq(1975, 2018, 1)) +
   labs(x = "", y = "Number of Refugees\n", 
        title = "Refugees arriving in the United States of America by Year (1975 - 2018)\n", 
-       caption = "\nData: State Department, Office of Admissions - Refugee Processing Center. Total Number of Accepted Refugees since 1975: 3.340.709") 
+       caption = "\nData: State Department, Office of Admissions - Refugee Processing Center. Total Number of Accepted Refugees since 1975: 3.340.709; Visualization: @favstats") 
 
 ggsave(filename = "images/refugee75.png", height = 7, width = 13) 
 ```
@@ -1070,25 +1050,6 @@ admissions75  %>%
 ```
 
 
-## Demographics
-
-```{r}
-
-read_html("http://ireports.wrapsnet.org/Interactive-Reporting/EnumType/Report?ItemPath=/rpt_WebArrivalsReports/MX%20-%20Arrivals%20for%20a%20Demographic%20Profile") %>% 
-  html_nodes("#dnn_ctr513_View_ReportViewer1_ctl04_ctl07_ddValue") %>% 
-  html_attr("value")
-
-read_excel("data/MX - Arrivals for a Demographic Profile.xls", sheet = "Age Group") 
-
-
-read_excel("data/MX - Arrivals for a Demographic Profile.xls", sheet = "Religion", skip = 16) 
-
-read_excel("data/MX - Arrivals for a Demographic Profile.xls", sheet = "Ethnicity", skip = 15) 
-
-read_excel("data/MX - Arrivals for a Demographic Profile.xls", sheet = "Education", skip = 15) 
-
-read_excel("data/MX - Arrivals for a Demographic Profile.xls", sheet = "Native Language", skip = 15) 
-```
 
 
 ## UN Data

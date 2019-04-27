@@ -8,7 +8,7 @@ output: html_document
 ```{r}
 pacman::p_load(tidyverse, rvest, RSelenium, seleniumPipes, glue)
 
-source("scripts/scrape_helpers.R")
+
 
 
 ```
@@ -94,7 +94,7 @@ tidytemplate::save_it(age_dataset)
 #   map_dfr(parse_age_data)
 
 
-age_dataset <- tidytemplate::load_it("data/age_dataset.Rdata")
+age_dataset <- tidytemplate::load_it("data/arrival.xls")
 
 bind_rows(age_dataset) %>% 
   # filter(str_detect(cntry, "somalia")) %>% 
@@ -173,46 +173,7 @@ age_viz %>%
   theme(plot.margin = unit(c(1,4,1,1), "lines"))
 
 tidytemplate::ggsave_it(refug_age, width = 10, height = 6)
-
-
-bind_rows(age_dataset) %>% 
-  # filter(str_detect(cntry, "somalia")) %>% 
-  filter(characteristic != "Characteristic") %>% 
-  group_by(key, gender, characteristic) %>% 
-  summarise(value = sum(value)) %>% 
-  group_by(gender) %>% 
-  summarise(value = sum(value))
-
-
-age_dataset %>% 
-  bind_rows %>% 
-  mutate(characteristic = forcats::fct_relevel(characteristic, complete_ages)) %>% 
-  filter(gender %in% c("M","F")) %>% 
-  group_by(key, 
-           #gender, 
-           characteristic) %>% 
-  summarize(value = sum(value))  %>% 
-  mutate(total = sum(value)) %>% 
-  mutate(perc = value/total)  %>% 
-  group_by(characteristic) %>% 
-  summarize(value = sum(value))  %>% 
-  mutate(total = sum(value)) %>% 
-  mutate(perc = value/total) 
 ```
-
-#### Age Cleaning
-
-```{r}
-bind_rows(age_dataset) %>%
-  # filter(cntry == "117_ivory_coast") %>% arrange(key, characteristic)
-  # filter(characteristic == "Characteristic")
-  mutate(characteristic = ifelse(characteristic == "Characteristic", "Age 65 and Over", characteristic)) %>%
-  filter(key == 2015) %>% 
-  filter(gender == "U")
-  group_by(gender) %>% 
-  count
-```
-
 
 ### Religion Dataset
 
@@ -412,12 +373,6 @@ education_viz %>%
   geom_text(data = by_year_labs, aes(label = round(100*perc_label)), color = "black", size = 2.8, nudge_y = -0.01)
 
 tidytemplate::ggsave_it(refug_educ, width = 10, height = 6)
-
-education_viz %>% 
-  group_by(education) %>% 
-  summarize(value = sum(value))  %>% 
-  mutate(total = sum(value)) %>% 
-  mutate(perc = value/total) 
 ```
 
 ## Leftover
